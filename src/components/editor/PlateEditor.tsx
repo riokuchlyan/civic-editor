@@ -80,50 +80,96 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
       // Listen for awareness changes (other users)
       webrtcProvider.awareness.on('change', () => {
         const states = Array.from(webrtcProvider.awareness.getStates().values());
+        const localClientId = webrtcProvider.awareness.clientID;
         const users = states
-          .filter((state: any) => state.user?.name)
-          .map((state: any) => state.user.name);
+          .filter((state: unknown) => {
+            const stateObj = state as { user?: { name: string } };
+            return stateObj.user?.name && webrtcProvider.awareness.getStates().get(localClientId) !== state;
+          })
+          .map((state: unknown) => (state as { user: { name: string } }).user.name);
         setCollaborators(users);
       });
 
       // Set current user info
+      const userName = `User${Math.floor(Math.random() * 1000)}`;
       webrtcProvider.awareness.setLocalStateField('user', {
-        name: `User${Math.floor(Math.random() * 1000)}`,
+        name: userName,
         color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
+        typing: false,
       });
+
+      // Wait a bit for connection and then sync initial content
+      setTimeout(() => {
+        const yText = doc.getText('content');
+        if (yText.length === 0) {
+          // If no content exists, set our initial content
+          const currentContent = Array.isArray(value) 
+            ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
+            : '';
+          if (currentContent) {
+            yText.insert(0, currentContent);
+          }
+        } else {
+          // If content exists, load it
+          const remoteContent = yText.toString();
+          if (remoteContent) {
+            const newValue = [{ type: 'p', children: [{ text: remoteContent }] }];
+            setValue(newValue);
+            setEditorContent(remoteContent);
+          }
+        }
+      }, 500);
 
       return () => {
         webrtcProvider.destroy();
         doc.destroy();
       };
     }
-  }, [roomId]);
+  }, [roomId, setValue, value]);
 
-  // Typing indicator
+  // Typing indicator and input handler
   useEffect(() => {
     let typingTimeout: NodeJS.Timeout;
     
     const handleTyping = () => {
-      setIsTyping(true);
       if (provider) {
         provider.awareness.setLocalStateField('typing', true);
-      }
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        setIsTyping(false);
-        if (provider) {
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
           provider.awareness.setLocalStateField('typing', false);
-        }
-      }, 1000);
+        }, 1000);
+      }
     };
 
     if (provider) {
       // Listen for typing indicators from other users
-      provider.awareness.on('change', () => {
+      const awarenessHandler = () => {
         const states = Array.from(provider.awareness.getStates().values());
-        const someoneTyping = states.some((state: any) => state.typing && state.user?.name);
-        setIsTyping(someoneTyping);
-      });
+        const localClientId = provider.awareness.clientID;
+        const someoneElseTyping = states.some((state: unknown) => {
+          const stateObj = state as { typing?: boolean; user?: { name: string } };
+          return stateObj.typing && stateObj.user?.name && provider.awareness.getStates().get(localClientId) !== state;
+        });
+        setIsTyping(someoneElseTyping);
+      };
+      
+      provider.awareness.on('change', awarenessHandler);
+      
+      // Add input event listener to trigger typing indicator
+      const editor = editorRef.current;
+      if (editor) {
+        editor.addEventListener('input', handleTyping);
+        editor.addEventListener('keydown', handleTyping);
+      }
+      
+      return () => {
+        clearTimeout(typingTimeout);
+        provider.awareness.off('change', awarenessHandler);
+        if (editor) {
+          editor.removeEventListener('input', handleTyping);
+          editor.removeEventListener('keydown', handleTyping);
+        }
+      };
     }
 
     return () => clearTimeout(typingTimeout);
@@ -224,10 +270,14 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   const syncContentChange = (content: unknown) => {
     if (yDoc && provider) {
       const yText = yDoc.getText('content');
-      const currentText = typeof content === 'string' ? content : JSON.stringify(content);
-      if (yText.toString() !== currentText) {
+      // Extract plain text from content for better collaboration
+      const textContent = Array.isArray(content) 
+        ? content.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
+        : typeof content === 'string' ? content : '';
+      
+      if (yText.toString() !== textContent) {
         yText.delete(0, yText.length);
-        yText.insert(0, currentText);
+        yText.insert(0, textContent);
       }
     }
   };
@@ -239,15 +289,17 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
       
       const observer = () => {
         const remoteContent = yText.toString();
-        if (remoteContent && remoteContent !== JSON.stringify(value)) {
+        const currentContent = Array.isArray(value) 
+          ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
+          : '';
+          
+        if (remoteContent && remoteContent !== currentContent) {
           isRemoteUpdateRef.current = true;
-          try {
-            const parsedContent = JSON.parse(remoteContent);
-            setValue(parsedContent);
-          } catch {
-            // If it's just text, create a paragraph node
-            setValue([{ type: 'p', children: [{ text: remoteContent }] }]);
-          }
+          // Update both the state and editor content
+          const newValue = [{ type: 'p', children: [{ text: remoteContent }] }];
+          setValue(newValue);
+          setEditorContent(remoteContent);
+          
           setTimeout(() => {
             isRemoteUpdateRef.current = false;
           }, 100);
@@ -265,7 +317,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
       const editor = editorRef.current;
       
       const content = Array.isArray(value) 
-        ? value.map(node => node.children?.map((child: any) => child.text).join('') || '').join('\n')
+        ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
         : value;
       
       // Only update if content actually changed and we're not typing
@@ -392,7 +444,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   };
 
   // Parse editor content and render with interactive elements
-  const parseAndRenderContent = () => {
+  /* const parseAndRenderContent = () => {
     const content = editorContent || (editorRef.current?.textContent || '');
     if (!content || (!content.includes('happy') && !content.includes('sad'))) {
       return null;
@@ -403,7 +455,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
         {renderInteractiveText(content)}
       </div>
     );
-  };
+  }; */
 
   return (
     <div className="editor-container">

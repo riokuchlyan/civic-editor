@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { OpenAI } from 'openai';
 
 export interface UseAIOptions {
@@ -18,11 +18,11 @@ export function useAI({ mood, onSuccess, onError }: UseAIOptions): UseAIReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize OpenAI client
-  const openai = new OpenAI({
+  // Initialize OpenAI client inside useMemo to avoid recreating on every render
+  const openai = useMemo(() => new OpenAI({
     apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
     dangerouslyAllowBrowser: true, // Allow client-side usage
-  });
+  }), []);
 
   const rewrite = useCallback(async (text: string): Promise<string | null> => {
     setIsProcessing(true);
