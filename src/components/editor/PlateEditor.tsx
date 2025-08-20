@@ -69,6 +69,10 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [editorContent, setEditorContent] = useState('');
+  const [providerType, setProviderType] = useState<'webrtc' | 'websocket' | 'none'>('none');
+  const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
+  const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
+  const [provider, setProvider] = useState<WebrtcProvider | WebsocketProvider | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const isRemoteUpdateRef = useRef(false);
   const isLocalUpdateRef = useRef(false);
@@ -86,8 +90,8 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
 
   // Set up Yjs collaboration with fallback
   useEffect(() => {
-    if (roomId) {
-      console.log(`🔗 Setting up collaboration for room: ${roomId}`);
+    if (activeRoomId) {
+      console.log(`🔗 Setting up collaboration for room: ${activeRoomId}`);
       
       const doc = new Y.Doc();
       let activeProvider: WebrtcProvider | WebsocketProvider;
@@ -139,7 +143,7 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
         setProviderType('websocket');
         
         // Use a public Yjs WebSocket server (you can replace with your own)
-        const wsProvider = new WebsocketProvider('wss://demos.yjs.dev', `civic-${roomId}`, doc);
+        const wsProvider = new WebsocketProvider('wss://demos.yjs.dev', `civic-${activeRoomId}`, doc);
         
         wsProvider.on('status', (event: any) => {
           console.log(`📡 WebSocket status: ${event.status}`);
@@ -172,7 +176,7 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
         console.log('🌐 Using WebRTC provider (P2P)');
         setProviderType('webrtc');
         
-        const webrtcProvider = new WebrtcProvider(`civic-${roomId}`, doc, {
+        const webrtcProvider = new WebrtcProvider(`civic-${activeRoomId}`, doc, {
           signaling: [
             'wss://signaling.yjs.dev',
             'wss://y-webrtc-signaling-eu.herokuapp.com',
@@ -265,7 +269,7 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
           
           const starterText = getStarterText(mood).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           if (currentContent && currentContent !== starterText) {
-            console.log(`📝 Setting initial content for room ${roomId}`);
+            console.log(`📝 Setting initial content for room ${activeRoomId}`);
             yText.insert(0, currentContent);
           }
         }
@@ -274,14 +278,14 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
       setTimeout(setupInitialContent, 1500);
 
       return () => {
-        console.log(`🔌 Disconnecting from room: ${roomId}`);
+        console.log(`🔌 Disconnecting from room: ${activeRoomId}`);
         if (activeProvider) {
           activeProvider.destroy();
         }
         doc.destroy();
       };
     }
-  }, [roomId]);
+  }, [activeRoomId]);
 
   // Typing indicator and input handler
   useEffect(() => {
@@ -771,9 +775,9 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
           <div className="info-item">
             <span>Ctrl+B/I/U for formatting • /rewrite + Ctrl+Enter for AI</span>
           </div>
-                                {roomId && (
+                                {activeRoomId && (
                         <div className="info-item">
-                          <span>🤝 Room: {roomId}</span>
+                          <span>🤝 Room: {activeRoomId}</span>
                           <span> • {providerType === 'webrtc' ? '🌐' : '📡'} {connectionStatus} ({providerType})</span>
                           {collaborators.length > 0 && (
                             <span> • 👥 {collaborators.join(', ')}</span>
