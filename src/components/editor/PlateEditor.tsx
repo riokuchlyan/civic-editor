@@ -6,7 +6,10 @@ import { createParagraphPlugin } from '@udecode/plate-paragraph';
 import { createHeadingPlugin } from '@udecode/plate-heading';
 import { createBoldPlugin, createItalicPlugin, createUnderlinePlugin } from '@udecode/plate-basic-marks';
 import { createListPlugin } from '@udecode/plate-list';
+import { createPluginFactory } from '@udecode/plate-core';
 // import { createYjsPlugin } from '@udecode/plate-yjs'; // Package doesn't exist in current version
+import { HappyElement } from './HappyElement';
+import { SadElement } from './SadElement';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAI } from '../../hooks/useAI';
 import * as Y from 'yjs';
@@ -54,6 +57,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<WebrtcProvider | null>(null);
+  const [editorContent, setEditorContent] = useState('');
   const editorRef = useRef<HTMLDivElement>(null);
   const isRemoteUpdateRef = useRef(false);
 
@@ -200,6 +204,9 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     const newContent = e.currentTarget.textContent || '';
     const newValue = [{ type: 'p', children: [{ text: newContent }] }];
     
+    // Update the editor content state for interactive overlay
+    setEditorContent(newContent);
+    
     // Only update if content actually changed to avoid cursor jumps
     const currentContent = Array.isArray(value) 
       ? value.map(node => node.children?.map((child: any) => child.text).join('') || '').join('\n')
@@ -226,6 +233,111 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     createUnderlinePlugin(),
     createListPlugin(),
   ], []);
+
+  // Create custom plugins for happy and sad text
+  const createHappyTextPlugin = () => ({
+    key: 'happy-text',
+    isElement: true,
+    component: HappyElement,
+  });
+
+  const createSadTextPlugin = () => ({
+    key: 'sad-text', 
+    isElement: true,
+    component: SadElement,
+  });
+
+  // Enhanced plugins with custom elements
+  const enhancedPlugins = useMemo(() => [
+    createParagraphPlugin(),
+    createHeadingPlugin(),
+    createBoldPlugin(),
+    createItalicPlugin(),
+    createUnderlinePlugin(),
+    createListPlugin(),
+    createHappyTextPlugin(),
+    createSadTextPlugin(),
+  ], []);
+
+  // Function to detect and transform happy/sad words into custom elements
+  const transformTextToElements = (nodes: any[]): any[] => {
+    return nodes.map(node => {
+      if (node.children) {
+        return {
+          ...node,
+          children: transformTextToElements(node.children)
+        };
+      }
+      
+      if (node.text) {
+        const text = node.text;
+        const parts: any[] = [];
+        let lastIndex = 0;
+        
+        // Find happy words
+        const happyRegex = /\bhappy\b/gi;
+        let match;
+        
+        while ((match = happyRegex.exec(text)) !== null) {
+          // Add text before the match
+          if (match.index > lastIndex) {
+            parts.push({
+              text: text.slice(lastIndex, match.index),
+              ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'text'))
+            });
+          }
+          
+          // Add happy element
+          parts.push({
+            type: 'happy-text',
+            children: [{ text: match[0] }]
+          });
+          
+          lastIndex = match.index + match[0].length;
+        }
+        
+        // Find sad words in remaining text
+        const remainingText = text.slice(lastIndex);
+        const sadRegex = /\bsad\b/gi;
+        let sadLastIndex = 0;
+        
+        while ((match = sadRegex.exec(remainingText)) !== null) {
+          // Add text before the match
+          if (match.index > sadLastIndex) {
+            parts.push({
+              text: remainingText.slice(sadLastIndex, match.index),
+              ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'text'))
+            });
+          }
+          
+          // Add sad element
+          parts.push({
+            type: 'sad-text',
+            children: [{ text: match[0] }]
+          });
+          
+          sadLastIndex = match.index + match[0].length;
+        }
+        
+        // Add remaining text
+        if (sadLastIndex < remainingText.length) {
+          parts.push({
+            text: remainingText.slice(sadLastIndex),
+            ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'text'))
+          });
+        }
+        
+        // If no transformations were made, return original node
+        if (parts.length === 0) {
+          return node;
+        }
+        
+        return parts.filter(part => part.text !== '');
+      }
+      
+      return node;
+    }).flat();
+  };
 
   // Sync content changes to other collaborators
   const syncContentChange = (content: any) => {
@@ -330,6 +442,88 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     }
   }, [value]);
 
+  // Render happy/sad words as interactive elements
+  const renderInteractiveText = (text: string) => {
+    const parts = [];
+    let lastIndex = 0;
+    
+    // Find happy words
+    const happyRegex = /\bhappy\b/gi;
+    let match;
+    
+    const allMatches: Array<{index: number, length: number, type: 'happy' | 'sad', text: string}> = [];
+    
+    // Collect happy matches
+    while ((match = happyRegex.exec(text)) !== null) {
+      allMatches.push({
+        index: match.index,
+        length: match[0].length,
+        type: 'happy',
+        text: match[0]
+      });
+    }
+    
+    // Find sad words
+    const sadRegex = /\bsad\b/gi;
+    while ((match = sadRegex.exec(text)) !== null) {
+      allMatches.push({
+        index: match.index,
+        length: match[0].length,
+        type: 'sad',
+        text: match[0]
+      });
+    }
+    
+    // Sort matches by index
+    allMatches.sort((a, b) => a.index - b.index);
+    
+    // Build the result
+    allMatches.forEach((match, i) => {
+      // Add text before this match
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+      
+      // Add the interactive element
+      if (match.type === 'happy') {
+        parts.push(
+          <HappyElement key={`happy-${i}`}>
+            {match.text}
+          </HappyElement>
+        );
+      } else {
+        parts.push(
+          <SadElement key={`sad-${i}`}>
+            {match.text}
+          </SadElement>
+        );
+      }
+      
+      lastIndex = match.index + match.length;
+    });
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : [text];
+  };
+
+  // Parse editor content and render with interactive elements
+  const parseAndRenderContent = () => {
+    const content = editorContent || (editorRef.current?.textContent || '');
+    if (!content || (!content.includes('happy') && !content.includes('sad'))) {
+      return null;
+    }
+    
+    return (
+      <div className="interactive-overlay">
+        {renderInteractiveText(content)}
+      </div>
+    );
+  };
+
   return (
     <div className="editor-container">
       <div
@@ -346,6 +540,29 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
           whiteSpace: 'pre-wrap',
         }}
       />
+      
+      {/* Show interactive elements when happy/sad words are detected */}
+      {editorContent && (editorContent.includes('happy') || editorContent.includes('sad')) && (
+        <div className="interactive-hints" style={{
+          position: 'fixed',
+          bottom: '80px',
+          right: '2rem',
+          background: 'hsl(var(--background))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          maxWidth: '300px',
+          zIndex: 10
+        }}>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'hsl(var(--foreground))' }}>
+            Click on highlighted words for inspiring quotes.
+          </p>
+          <div style={{ marginTop: '0.5rem' }}>
+            {renderInteractiveText(editorContent)}
+          </div>
+        </div>
+      )}
       
             {isProcessing && (
         <div className="info-bar">

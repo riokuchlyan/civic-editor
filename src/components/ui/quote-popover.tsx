@@ -29,12 +29,39 @@ export function QuotePopover({ children, quotes, type }: QuotePopoverProps) {
           {children}
         </span>
       </PopoverTrigger>
-      <PopoverContent className="w-80">
-        <div className="space-y-2">
-          <h4 className="font-medium leading-none">
-            {type === 'happy' ? '😊 Happy Quote' : '😢 Sad Quote'}
+      <PopoverContent 
+        className="w-80"
+        style={{
+          backgroundColor: 'hsl(var(--background))',
+          border: '1px solid hsl(var(--border))',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          borderRadius: '0.5rem',
+        }}
+      >
+        <div className="space-y-3">
+          <h4 
+            className="font-medium leading-none"
+            style={{ 
+              color: type === 'happy' ? '#16a34a' : '#dc2626',
+              fontSize: '0.875rem',
+              fontWeight: '600'
+            }}
+          >
+            {type === 'happy' ? '😊 Happy Quote' : '😔 Contemplative Quote'}
           </h4>
-          <p className="text-sm text-muted-foreground">
+          <p 
+            style={{
+              fontSize: '0.875rem',
+              lineHeight: '1.5',
+              color: 'hsl(var(--foreground))',
+              fontStyle: 'italic',
+              backgroundColor: type === 'happy' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+              padding: '0.75rem',
+              borderRadius: '0.375rem',
+              border: `1px solid ${type === 'happy' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+              margin: 0
+            }}
+          >
             {currentQuote}
           </p>
         </div>

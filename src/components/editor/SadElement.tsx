@@ -6,7 +6,8 @@ import { sadQuotes } from '../../lib/quotes';
 
 export interface SadElementProps {
   children: React.ReactNode;
-  attributes: any;
+  attributes?: any;
+  element?: any;
 }
 
 export function SadElement({ children, attributes }: SadElementProps) {

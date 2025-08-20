@@ -6,7 +6,8 @@ import { happyQuotes } from '../../lib/quotes';
 
 export interface HappyElementProps {
   children: React.ReactNode;
-  attributes: any;
+  attributes?: any;
+  element?: any;
 }
 
 export function HappyElement({ children, attributes }: HappyElementProps) {
