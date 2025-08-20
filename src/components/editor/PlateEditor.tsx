@@ -523,13 +523,11 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
     const parts = [];
     let lastIndex = 0;
     
-    // Find happy words
     const happyRegex = /\bhappy\b/gi;
     let match;
     
     const allMatches: Array<{index: number, length: number, type: 'happy' | 'sad', text: string}> = [];
     
-    // Collect happy matches
     while ((match = happyRegex.exec(text)) !== null) {
       allMatches.push({
         index: match.index,
@@ -539,7 +537,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
       });
     }
     
-    // Find sad words
     const sadRegex = /\bsad\b/gi;
     while ((match = sadRegex.exec(text)) !== null) {
       allMatches.push({
@@ -550,17 +547,13 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
       });
     }
     
-    // Sort matches by index
     allMatches.sort((a, b) => a.index - b.index);
     
-    // Build the result
     allMatches.forEach((match, i) => {
-      // Add text before this match
       if (match.index > lastIndex) {
         parts.push(text.slice(lastIndex, match.index));
       }
       
-      // Add the interactive element
       if (match.type === 'happy') {
         parts.push(
           <HappyElement key={`happy-${i}`}>
@@ -578,7 +571,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
       lastIndex = match.index + match.length;
     });
     
-    // Add remaining text
     if (lastIndex < text.length) {
       parts.push(text.slice(lastIndex));
     }
@@ -586,23 +578,8 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
     return parts.length > 0 ? parts : [text];
   };
 
-  // Parse editor content and render with interactive elements
-  /* const parseAndRenderContent = () => {
-    const content = editorContent || (editorRef.current?.textContent || '');
-    if (!content || (!content.includes('happy') && !content.includes('sad'))) {
-      return null;
-    }
-    
-    return (
-      <div className="interactive-overlay">
-        {renderInteractiveText(content)}
-      </div>
-    );
-  }; */
-
   return (
     <div className="editor-container">
-      {/* Collaboration Header */}
       {mounted && (
         <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -674,11 +651,9 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
             whiteSpace: 'pre-wrap',
           }}
         />
-        {/* Remote cursor overlay */}
         <collaboration.RemoteCursorOverlay />
       </div>
       
-      {/* Show interactive elements when happy/sad words are detected */}
       {editorContent && (editorContent.includes('happy') || editorContent.includes('sad')) && (
         <div className="interactive-hints" style={{
           position: 'fixed',

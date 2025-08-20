@@ -62,7 +62,6 @@ export function useCollaborationPlugin(config: CollaborationConfig = {}) {
 
         newProviders.push(webrtcProvider);
       } catch (error) {
-        // WebRTC provider failed, using WebSocket fallback
       }
       const wsProvider = new WebsocketProvider(
         'wss://demos.yjs.dev', 
@@ -146,7 +145,6 @@ export function useCollaborationPlugin(config: CollaborationConfig = {}) {
   };
 }
 
-// Utility function to generate random room IDs
 export const generateRoomId = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';

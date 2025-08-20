@@ -38,7 +38,6 @@ function RemoteSelection({
   }
 
   const selectionStyle: React.CSSProperties = {
-    // Add a opacity to the background color
     backgroundColor: addAlpha(data.color, 0.5),
   };
 
