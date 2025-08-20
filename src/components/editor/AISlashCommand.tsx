@@ -32,7 +32,6 @@ export const createAISlashCommandPlugin = () => {
                   // Replace the current text with rewritten version
                   try {
                     editor.insertText(rewrittenText);
-                    // Clear the /rewrite command
                     const range = editor.selection;
                     if (range) {
                       editor.select(range);
@@ -40,12 +39,10 @@ export const createAISlashCommandPlugin = () => {
                       editor.insertText(rewrittenText);
                     }
                   } catch (error) {
-                    console.error('Error replacing text:', error);
-                    // Fallback: just append the rewritten text
                     editor.insertText(' → ' + rewrittenText);
                   }
                 }).catch((error) => {
-                  console.error('Error rewriting text:', error);
+                  // Handle rewrite error silently
                 });
               }
             }

@@ -41,12 +41,10 @@ export function useCollaborationPlugin(config: CollaborationConfig = {}) {
     const doc = new Y.Doc();
     setYDoc(doc);
 
-    // Setup providers
     const setupProviders = async () => {
       const newProviders: Array<WebrtcProvider | WebsocketProvider> = [];
       
       try {
-        // Try WebRTC first
         const webrtcProvider = new WebrtcProvider(`civic-${config.roomId}`, doc, {
           signaling: [
             process.env.NODE_ENV === 'production'
@@ -64,10 +62,8 @@ export function useCollaborationPlugin(config: CollaborationConfig = {}) {
 
         newProviders.push(webrtcProvider);
       } catch (error) {
-        console.warn('WebRTC provider failed, falling back to WebSocket');
+        // WebRTC provider failed, using WebSocket fallback
       }
-
-      // Fallback to WebSocket
       const wsProvider = new WebsocketProvider(
         'wss://demos.yjs.dev', 
         `civic-${config.roomId}`, 
@@ -84,7 +80,7 @@ export function useCollaborationPlugin(config: CollaborationConfig = {}) {
       newProviders.push(wsProvider);
       setProviders(newProviders);
 
-      // Setup state monitoring
+
       newProviders.forEach((provider) => {
         provider.on('status', ({ status }: { status: string }) => {
           setState(prev => ({

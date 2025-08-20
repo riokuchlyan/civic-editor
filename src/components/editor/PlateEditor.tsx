@@ -49,7 +49,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
   const { generateNewRoom, roomName, handleRoomChange } = useCollaborationRoom();
   const { cursorColor, username } = useCollaborationUser();
   
-  // Use the provided roomId or the one from the collaboration hook
   const activeRoomId = initialRoomId || roomName;
   
   const collaboration = useCollaborationPlugin({
@@ -77,39 +76,31 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
   const isRemoteUpdateRef = useRef(false);
   const isLocalUpdateRef = useRef(false);
 
-  // Use the AI hook for rewriting text
   const { isProcessing, error: aiError, rewrite, clearError } = useAI({
     mood,
     onSuccess: (result: string) => {
-      console.log(`AI rewrite successful for ${mood} mode:`, result);
+      // AI rewrite successful
     },
     onError: (error: Error) => {
-      console.error(`AI rewrite failed for ${mood} mode:`, error);
+      // AI rewrite failed
     },
   });
 
-  // Set up Yjs collaboration with fallback
   useEffect(() => {
     if (activeRoomId) {
-      console.log(`🔗 Setting up collaboration for room: ${activeRoomId}`);
       
       const doc = new Y.Doc();
       let activeProvider: WebrtcProvider | WebsocketProvider;
       
-      // Detect if we're in incognito mode or have WebRTC restrictions
       const isIncognitoOrRestricted = async (): Promise<boolean> => {
         try {
-          // Multiple methods to detect incognito mode
-          
-          // Method 1: Storage quota check
           if ('storage' in navigator && 'estimate' in navigator.storage) {
             const quota = await navigator.storage.estimate();
-            if (quota.quota && quota.quota < 120000000) { // Less than ~120MB indicates incognito
+            if (quota.quota && quota.quota < 120000000) {
               return true;
             }
           }
           
-          // Method 2: WebkitTemporaryStorage (Chrome)
           if ((navigator as any).webkitTemporaryStorage) {
             return new Promise<boolean>(resolve => {
               (navigator as any).webkitTemporaryStorage.queryUsageAndQuota(
@@ -119,43 +110,36 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
             });
           }
           
-          // Method 3: IndexedDB check
           if (!window.indexedDB) {
             return true;
           }
           
-          // Method 4: Try to create a test storage
           try {
             const testKey = '__incognito_test__';
             localStorage.setItem(testKey, 'test');
             localStorage.removeItem(testKey);
-            return false; // If we can use localStorage, probably not incognito
+            return false;
           } catch {
-            return true; // If localStorage fails, likely incognito
+            return true;
           }
         } catch {
-          return true; // If any error, assume restricted
+          return true;
         }
       };
 
       const setupWebSocketProvider = () => {
-        console.log('🌐 Using WebSocket provider (incognito-friendly)');
         setProviderType('websocket');
         
-        // Use a public Yjs WebSocket server (you can replace with your own)
         const wsProvider = new WebsocketProvider('wss://demos.yjs.dev', `civic-${activeRoomId}`, doc);
         
         wsProvider.on('status', (event: any) => {
-          console.log(`📡 WebSocket status: ${event.status}`);
           setConnectionStatus(event.status);
         });
 
         wsProvider.on('synced', (event: any) => {
-          console.log('🔄 WebSocket synced:', event);
           setConnectionStatus('synced');
         });
 
-        // Setup awareness for WebSocket
         wsProvider.awareness.on('change', () => {
           const states = Array.from(wsProvider.awareness.getStates().values());
           const localClientId = wsProvider.awareness.clientID;
@@ -166,14 +150,12 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
             })
             .map((state: unknown) => (state as { user: { name: string } }).user.name);
           setCollaborators(users);
-          console.log(`👥 WebSocket Collaborators: ${users.join(', ')}`);
         });
 
         return wsProvider;
       };
 
       const setupWebRTCProvider = () => {
-        console.log('🌐 Using WebRTC provider (P2P)');
         setProviderType('webrtc');
         
         const webrtcProvider = new WebrtcProvider(`civic-${activeRoomId}`, doc, {
@@ -190,17 +172,14 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
         });
 
         webrtcProvider.on('status', (event: any) => {
-          console.log(`🌐 WebRTC status: ${event.status}`);
           setConnectionStatus(event.status);
         });
 
         webrtcProvider.on('synced', (event: any) => {
-          console.log('🔄 WebRTC synced:', event);
           setConnectionStatus('synced');
         });
 
         webrtcProvider.on('peers', (event: any) => {
-          console.log(`🤝 WebRTC peers: ${event.added?.length || 0} added, ${event.removed?.length || 0} removed`);
           if (event.added?.length > 0) {
             setConnectionStatus('connected');
           }
@@ -216,23 +195,19 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
             })
             .map((state: unknown) => (state as { user: { name: string } }).user.name);
           setCollaborators(users);
-          console.log(`👥 WebRTC Collaborators: ${users.join(', ')}`);
         });
 
         return webrtcProvider;
       };
 
-      // Try WebRTC first, fallback to WebSocket
       isIncognitoOrRestricted().then((isRestricted) => {
         if (isRestricted) {
           activeProvider = setupWebSocketProvider();
         } else {
           activeProvider = setupWebRTCProvider();
           
-          // If WebRTC fails to connect after 5 seconds, fallback to WebSocket
           setTimeout(() => {
             if (connectionStatus === 'disconnected' || connectionStatus === 'connecting') {
-              console.log('🔄 WebRTC connection timeout, falling back to WebSocket');
               activeProvider.destroy();
               activeProvider = setupWebSocketProvider();
               setProvider(activeProvider);
@@ -245,10 +220,7 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
 
       setYDoc(doc);
 
-      // Set current user info
       const userName = `User${Math.floor(Math.random() * 1000)}`;
-      
-      // Wait a bit for provider setup then set user info
       setTimeout(() => {
         if (activeProvider && activeProvider.awareness) {
           activeProvider.awareness.setLocalStateField('user', {
@@ -269,7 +241,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
           
           const starterText = getStarterText(mood).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           if (currentContent && currentContent !== starterText) {
-            console.log(`📝 Setting initial content for room ${activeRoomId}`);
             yText.insert(0, currentContent);
           }
         }
@@ -278,7 +249,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
       setTimeout(setupInitialContent, 1500);
 
       return () => {
-        console.log(`🔌 Disconnecting from room: ${activeRoomId}`);
         if (activeProvider) {
           activeProvider.destroy();
         }
@@ -386,7 +356,7 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
                   syncContentChange(newValue);
                 }
               } catch (error) {
-                console.error('Error rewriting text:', error);
+                // Error rewriting text
                 // Show error in the editor
                 const errorText = `<p style="color: red;">Error: Could not rewrite text. ${error}</p>`;
                 target.innerHTML = target.innerHTML.replace('/rewrite ' + textToRewrite, errorText);
@@ -400,7 +370,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     // Don't update during remote updates to avoid conflicts
     if (isRemoteUpdateRef.current) {
-      console.log('⏸️ Skipping input during remote update');
       return;
     }
     
@@ -416,7 +385,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
       : value;
     
     if (newContent !== currentContent) {
-      console.log(`📤 Sending local update: "${newContent.substring(0, 50)}..."`);
       isLocalUpdateRef.current = true;
       setValue(newValue);
       syncContentChange(newValue);
@@ -462,7 +430,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
           : '';
           
         if (remoteContent !== currentContent) {
-          console.log(`📥 Received remote update: "${remoteContent.substring(0, 50)}..."`);
           isRemoteUpdateRef.current = true;
           
           // Update both the state and editor content
@@ -504,8 +471,6 @@ export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
     // 2. Remote updates (not local typing)
     if (currentText === '' || (isRemoteUpdateRef.current && !isLocalUpdateRef.current)) {
       if (currentText !== newText) {
-        console.log(`🔄 Updating editor DOM: ${isRemoteUpdateRef.current ? 'remote' : 'initial'}`);
-        
         const selection = window.getSelection();
         const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
         

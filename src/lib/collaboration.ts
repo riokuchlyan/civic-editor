@@ -1,8 +1,5 @@
 import * as React from 'react';
 
-// Collaboration utilities for real-time editing
-// This file integrates with Yjs and WebRTC providers
-
 export interface CollaborationRoom {
   id: string;
   name: string;
@@ -20,7 +17,6 @@ export interface CollaborationUser {
   };
 }
 
-// Generate a random room ID using a simple method (similar to nanoid)
 export function generateRoomId(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -30,7 +26,6 @@ export function generateRoomId(): string {
   return result;
 }
 
-// Generate a random user color for collaboration
 export function generateUserColor(): string {
   const letters = '0123456789ABCDEF';
   let color = '#';
@@ -40,7 +35,6 @@ export function generateUserColor(): string {
   return color;
 }
 
-// Hook for managing room state (inspired by the provided code)
 export function useCollaborationRoom() {
   const [roomName, setRoomName] = React.useState(() => {
     if (typeof window === 'undefined') return '';
@@ -75,7 +69,6 @@ export function useCollaborationRoom() {
   };
 }
 
-// Hook for managing user/cursor state (inspired by the provided code)
 export function useCollaborationUser() {
   const [username] = React.useState(
     () => `user-${Math.floor(Math.random() * 1000)}`
@@ -105,33 +98,23 @@ export function createRoom(name?: string): CollaborationRoom {
 
 // Join a collaboration room
 export async function joinRoom(roomId: string, user: Omit<CollaborationUser, 'id' | 'color'>): Promise<CollaborationUser> {
-  // TODO: Implement actual room joining logic with WebRTC/WebSocket
   const collaborationUser: CollaborationUser = {
     id: Math.random().toString(36).substring(2, 15),
     color: generateUserColor(),
     ...user,
   };
 
-  console.log(`User ${collaborationUser.name} joining room ${roomId}`);
   return collaborationUser;
 }
 
-// Leave a collaboration room
 export async function leaveRoom(roomId: string, userId: string): Promise<void> {
-  // TODO: Implement actual room leaving logic
-  console.log(`User ${userId} leaving room ${roomId}`);
+  return;
 }
 
-// Get room information
 export async function getRoomInfo(roomId: string): Promise<CollaborationRoom | null> {
-  // TODO: Implement actual room info retrieval
-  console.log(`Getting room info for ${roomId}`);
   return null;
 }
 
-// Placeholder for future Yjs document setup
 export function setupYjsDocument(roomId: string) {
-  console.log(`Setting up Yjs document for room: ${roomId}`);
-  // TODO: Implement Yjs document creation and WebRTC provider setup
   return null;
 }

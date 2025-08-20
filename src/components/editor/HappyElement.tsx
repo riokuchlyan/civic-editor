@@ -11,9 +11,7 @@ export interface HappyElementProps {
 }
 
 export function HappyElement({ children, attributes }: HappyElementProps) {
-  // Extract key from attributes to avoid React key prop spreading issue
   const { key, ...safeAttributes } = attributes || {};
-  // Suppress unused variable warning by referencing it
   void key;
   
   return (

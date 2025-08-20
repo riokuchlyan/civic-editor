@@ -19,14 +19,10 @@ export const createPlateComponents = () => ({
   'sad-text': SadElement,
 });
 
-// Word detection plugin to transform "happy" and "sad" words into custom elements
 export const createWordDetectionPlugin = () => {
   return {
-    // Plugin configuration without using 'key' prop for JSX
     handlers: {
       onKeyDown: (editor: any, event: KeyboardEvent) => {
-        // TODO: Implement word detection logic
-        // This would detect when users type "happy" or "sad" and transform them into custom elements
         return false;
       },
     },
@@ -34,8 +30,6 @@ export const createWordDetectionPlugin = () => {
       const { insertText } = editor;
 
       editor.insertText = (text: string) => {
-        // TODO: Implement text transformation logic
-        // Detect "happy" and "sad" words and wrap them in custom elements
         insertText(text);
       };
 
