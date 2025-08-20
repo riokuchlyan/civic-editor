@@ -8,6 +8,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAI } from '../../hooks/useAI';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
+import { WebsocketProvider } from 'y-websocket';
 
 interface PlateEditorProps {
   roomId?: string;
@@ -50,7 +51,8 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
-  const [provider, setProvider] = useState<WebrtcProvider | null>(null);
+  const [provider, setProvider] = useState<WebrtcProvider | WebsocketProvider | null>(null);
+  const [providerType, setProviderType] = useState<'webrtc' | 'websocket' | 'none'>('none');
   const [editorContent, setEditorContent] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const editorRef = useRef<HTMLDivElement>(null);
@@ -68,80 +70,185 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     },
   });
 
-  // Set up Yjs collaboration
+  // Set up Yjs collaboration with fallback
   useEffect(() => {
     if (roomId) {
       console.log(`🔗 Setting up collaboration for room: ${roomId}`);
       
       const doc = new Y.Doc();
-      // Use multiple signaling servers for better reliability
-      const webrtcProvider = new WebrtcProvider(`civic-${roomId}`, doc, {
-        signaling: [
-          'wss://signaling.yjs.dev',
-          'wss://y-webrtc-signaling-eu.herokuapp.com',
-          'wss://y-webrtc-signaling-us.herokuapp.com'
-        ],
-        password: null,
-        awareness: doc.awareness,
-        maxConns: 20 + Math.floor(Math.random() * 15), // randomize to avoid all clients connecting to same peer
-        filterBcConns: true,
-        peerOpts: {}
+      let activeProvider: WebrtcProvider | WebsocketProvider;
+      
+      // Detect if we're in incognito mode or have WebRTC restrictions
+      const isIncognitoOrRestricted = async (): Promise<boolean> => {
+        try {
+          // Multiple methods to detect incognito mode
+          
+          // Method 1: Storage quota check
+          if ('storage' in navigator && 'estimate' in navigator.storage) {
+            const quota = await navigator.storage.estimate();
+            if (quota.quota && quota.quota < 120000000) { // Less than ~120MB indicates incognito
+              return true;
+            }
+          }
+          
+          // Method 2: WebkitTemporaryStorage (Chrome)
+          if ((navigator as any).webkitTemporaryStorage) {
+            return new Promise<boolean>(resolve => {
+              (navigator as any).webkitTemporaryStorage.queryUsageAndQuota(
+                (_: number, quota: number) => resolve(quota === 0),
+                () => resolve(true)
+              );
+            });
+          }
+          
+          // Method 3: IndexedDB check
+          if (!window.indexedDB) {
+            return true;
+          }
+          
+          // Method 4: Try to create a test storage
+          try {
+            const testKey = '__incognito_test__';
+            localStorage.setItem(testKey, 'test');
+            localStorage.removeItem(testKey);
+            return false; // If we can use localStorage, probably not incognito
+          } catch {
+            return true; // If localStorage fails, likely incognito
+          }
+        } catch {
+          return true; // If any error, assume restricted
+        }
+      };
+
+      const setupWebSocketProvider = () => {
+        console.log('🌐 Using WebSocket provider (incognito-friendly)');
+        setProviderType('websocket');
+        
+        // Use a public Yjs WebSocket server (you can replace with your own)
+        const wsProvider = new WebsocketProvider('wss://demos.yjs.dev', `civic-${roomId}`, doc);
+        
+        wsProvider.on('status', (event: any) => {
+          console.log(`📡 WebSocket status: ${event.status}`);
+          setConnectionStatus(event.status);
+        });
+
+        wsProvider.on('synced', (event: any) => {
+          console.log('🔄 WebSocket synced:', event);
+          setConnectionStatus('synced');
+        });
+
+        // Setup awareness for WebSocket
+        wsProvider.awareness.on('change', () => {
+          const states = Array.from(wsProvider.awareness.getStates().values());
+          const localClientId = wsProvider.awareness.clientID;
+          const users = states
+            .filter((state: unknown) => {
+              const stateObj = state as { user?: { name: string } };
+              return stateObj.user?.name && wsProvider.awareness.getStates().get(localClientId) !== state;
+            })
+            .map((state: unknown) => (state as { user: { name: string } }).user.name);
+          setCollaborators(users);
+          console.log(`👥 WebSocket Collaborators: ${users.join(', ')}`);
+        });
+
+        return wsProvider;
+      };
+
+      const setupWebRTCProvider = () => {
+        console.log('🌐 Using WebRTC provider (P2P)');
+        setProviderType('webrtc');
+        
+        const webrtcProvider = new WebrtcProvider(`civic-${roomId}`, doc, {
+          signaling: [
+            'wss://signaling.yjs.dev',
+            'wss://y-webrtc-signaling-eu.herokuapp.com',
+            'wss://y-webrtc-signaling-us.herokuapp.com'
+          ],
+          password: null,
+          awareness: doc.awareness,
+          maxConns: 20 + Math.floor(Math.random() * 15),
+          filterBcConns: true,
+          peerOpts: {}
+        });
+
+        webrtcProvider.on('status', (event: any) => {
+          console.log(`🌐 WebRTC status: ${event.status}`);
+          setConnectionStatus(event.status);
+        });
+
+        webrtcProvider.on('synced', (event: any) => {
+          console.log('🔄 WebRTC synced:', event);
+          setConnectionStatus('synced');
+        });
+
+        webrtcProvider.on('peers', (event: any) => {
+          console.log(`🤝 WebRTC peers: ${event.added?.length || 0} added, ${event.removed?.length || 0} removed`);
+          if (event.added?.length > 0) {
+            setConnectionStatus('connected');
+          }
+        });
+
+        webrtcProvider.awareness.on('change', () => {
+          const states = Array.from(webrtcProvider.awareness.getStates().values());
+          const localClientId = webrtcProvider.awareness.clientID;
+          const users = states
+            .filter((state: unknown) => {
+              const stateObj = state as { user?: { name: string } };
+              return stateObj.user?.name && webrtcProvider.awareness.getStates().get(localClientId) !== state;
+            })
+            .map((state: unknown) => (state as { user: { name: string } }).user.name);
+          setCollaborators(users);
+          console.log(`👥 WebRTC Collaborators: ${users.join(', ')}`);
+        });
+
+        return webrtcProvider;
+      };
+
+      // Try WebRTC first, fallback to WebSocket
+      isIncognitoOrRestricted().then((isRestricted) => {
+        if (isRestricted) {
+          activeProvider = setupWebSocketProvider();
+        } else {
+          activeProvider = setupWebRTCProvider();
+          
+          // If WebRTC fails to connect after 5 seconds, fallback to WebSocket
+          setTimeout(() => {
+            if (connectionStatus === 'disconnected' || connectionStatus === 'connecting') {
+              console.log('🔄 WebRTC connection timeout, falling back to WebSocket');
+              activeProvider.destroy();
+              activeProvider = setupWebSocketProvider();
+              setProvider(activeProvider);
+            }
+          }, 5000);
+        }
+        
+        setProvider(activeProvider);
       });
 
       setYDoc(doc);
-      setProvider(webrtcProvider);
-
-      // Connection status logging
-      webrtcProvider.on('status', (event: any) => {
-        console.log(`🌐 WebRTC status: ${event.status}`);
-        setConnectionStatus(event.status);
-      });
-
-      webrtcProvider.on('synced', (event: any) => {
-        console.log('🔄 Synced with peers:', event);
-        setConnectionStatus('synced');
-      });
-
-      webrtcProvider.on('peers', (event: any) => {
-        console.log(`🤝 Connected peers: ${event.added?.length || 0} added, ${event.removed?.length || 0} removed`);
-        if (event.added?.length > 0) {
-          setConnectionStatus('connected');
-        }
-      });
-
-      // Listen for awareness changes (other users)
-      webrtcProvider.awareness.on('change', () => {
-        const states = Array.from(webrtcProvider.awareness.getStates().values());
-        const localClientId = webrtcProvider.awareness.clientID;
-        const users = states
-          .filter((state: unknown) => {
-            const stateObj = state as { user?: { name: string } };
-            return stateObj.user?.name && webrtcProvider.awareness.getStates().get(localClientId) !== state;
-          })
-          .map((state: unknown) => (state as { user: { name: string } }).user.name);
-        setCollaborators(users);
-        console.log(`👥 Collaborators: ${users.join(', ')}`);
-      });
 
       // Set current user info
       const userName = `User${Math.floor(Math.random() * 1000)}`;
-      webrtcProvider.awareness.setLocalStateField('user', {
-        name: userName,
-        color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
-        typing: false,
-      });
-
-      // Handle initial content sync more carefully
-      const yText = doc.getText('content');
       
-      // Only set initial content if document is truly empty and we have content
+      // Wait a bit for provider setup then set user info
+      setTimeout(() => {
+        if (activeProvider && activeProvider.awareness) {
+          activeProvider.awareness.setLocalStateField('user', {
+            name: userName,
+            color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
+            typing: false,
+          });
+        }
+      }, 500);
+
+      // Handle initial content sync
       const setupInitialContent = () => {
+        const yText = doc.getText('content');
         if (yText.length === 0) {
           const currentContent = Array.isArray(value) 
             ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
             : '';
           
-          // Only add starter text if we have meaningful content (not just default text)
           const starterText = getStarterText(mood).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           if (currentContent && currentContent !== starterText) {
             console.log(`📝 Setting initial content for room ${roomId}`);
@@ -150,12 +257,13 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
         }
       };
 
-      // Wait for connection before syncing
-      setTimeout(setupInitialContent, 1000);
+      setTimeout(setupInitialContent, 1500);
 
       return () => {
         console.log(`🔌 Disconnecting from room: ${roomId}`);
-        webrtcProvider.destroy();
+        if (activeProvider) {
+          activeProvider.destroy();
+        }
         doc.destroy();
       };
     }
@@ -591,7 +699,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
                                 {roomId && (
                         <div className="info-item">
                           <span>🤝 Room: {roomId}</span>
-                          <span> • 🌐 {connectionStatus}</span>
+                          <span> • {providerType === 'webrtc' ? '🌐' : '📡'} {connectionStatus} ({providerType})</span>
                           {collaborators.length > 0 && (
                             <span> • 👥 {collaborators.join(', ')}</span>
                           )}
