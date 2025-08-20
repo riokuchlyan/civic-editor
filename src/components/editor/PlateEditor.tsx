@@ -1,12 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Plate } from '@udecode/plate-core';
-import { createParagraphPlugin } from '@udecode/plate-paragraph';
-import { createHeadingPlugin } from '@udecode/plate-heading';
-import { createBoldPlugin, createItalicPlugin, createUnderlinePlugin } from '@udecode/plate-basic-marks';
-import { createListPlugin } from '@udecode/plate-list';
-import { createPluginFactory } from '@udecode/plate-core';
+import React, { useState, useRef, useEffect } from 'react';
 // import { createYjsPlugin } from '@udecode/plate-yjs'; // Package doesn't exist in current version
 import { HappyElement } from './HappyElement';
 import { SadElement } from './SadElement';
@@ -64,10 +58,10 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   // Use the AI hook for rewriting text
   const { isProcessing, error: aiError, rewrite, clearError } = useAI({
     mood,
-    onSuccess: (result) => {
+    onSuccess: (result: string) => {
       console.log(`AI rewrite successful for ${mood} mode:`, result);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error(`AI rewrite failed for ${mood} mode:`, error);
     },
   });
@@ -224,123 +218,10 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     document.execCommand('insertText', false, text);
   };
 
-  // Create plugins with basic collaboration simulation
-  const plugins = useMemo(() => [
-    createParagraphPlugin(),
-    createHeadingPlugin(),
-    createBoldPlugin(),
-    createItalicPlugin(),
-    createUnderlinePlugin(),
-    createListPlugin(),
-  ], []);
 
-  // Create custom plugins for happy and sad text
-  const createHappyTextPlugin = () => ({
-    key: 'happy-text',
-    isElement: true,
-    component: HappyElement,
-  });
-
-  const createSadTextPlugin = () => ({
-    key: 'sad-text', 
-    isElement: true,
-    component: SadElement,
-  });
-
-  // Enhanced plugins with custom elements
-  const enhancedPlugins = useMemo(() => [
-    createParagraphPlugin(),
-    createHeadingPlugin(),
-    createBoldPlugin(),
-    createItalicPlugin(),
-    createUnderlinePlugin(),
-    createListPlugin(),
-    createHappyTextPlugin(),
-    createSadTextPlugin(),
-  ], []);
-
-  // Function to detect and transform happy/sad words into custom elements
-  const transformTextToElements = (nodes: any[]): any[] => {
-    return nodes.map(node => {
-      if (node.children) {
-        return {
-          ...node,
-          children: transformTextToElements(node.children)
-        };
-      }
-      
-      if (node.text) {
-        const text = node.text;
-        const parts: any[] = [];
-        let lastIndex = 0;
-        
-        // Find happy words
-        const happyRegex = /\bhappy\b/gi;
-        let match;
-        
-        while ((match = happyRegex.exec(text)) !== null) {
-          // Add text before the match
-          if (match.index > lastIndex) {
-            parts.push({
-              text: text.slice(lastIndex, match.index),
-              ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'text'))
-            });
-          }
-          
-          // Add happy element
-          parts.push({
-            type: 'happy-text',
-            children: [{ text: match[0] }]
-          });
-          
-          lastIndex = match.index + match[0].length;
-        }
-        
-        // Find sad words in remaining text
-        const remainingText = text.slice(lastIndex);
-        const sadRegex = /\bsad\b/gi;
-        let sadLastIndex = 0;
-        
-        while ((match = sadRegex.exec(remainingText)) !== null) {
-          // Add text before the match
-          if (match.index > sadLastIndex) {
-            parts.push({
-              text: remainingText.slice(sadLastIndex, match.index),
-              ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'text'))
-            });
-          }
-          
-          // Add sad element
-          parts.push({
-            type: 'sad-text',
-            children: [{ text: match[0] }]
-          });
-          
-          sadLastIndex = match.index + match[0].length;
-        }
-        
-        // Add remaining text
-        if (sadLastIndex < remainingText.length) {
-          parts.push({
-            text: remainingText.slice(sadLastIndex),
-            ...Object.fromEntries(Object.entries(node).filter(([key]) => key !== 'text'))
-          });
-        }
-        
-        // If no transformations were made, return original node
-        if (parts.length === 0) {
-          return node;
-        }
-        
-        return parts.filter(part => part.text !== '');
-      }
-      
-      return node;
-    }).flat();
-  };
 
   // Sync content changes to other collaborators
-  const syncContentChange = (content: any) => {
+  const syncContentChange = (content: unknown) => {
     if (yDoc && provider) {
       const yText = yDoc.getText('content');
       const currentText = typeof content === 'string' ? content : JSON.stringify(content);
@@ -376,7 +257,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
       yText.observe(observer);
       return () => yText.unobserve(observer);
     }
-  }, [yDoc, provider, value]);
+  }, [yDoc, provider, value, setValue]);
 
   // Load content into contentEditable div with cursor preservation
   useEffect(() => {

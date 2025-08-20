@@ -1,97 +1,60 @@
 # Civic Text Editor
 
-A beautiful Notion-like text editor built with Next.js, Plate.js, and AI-powered content transformation.
+A modern text editor built with Next.js that offers AI-powered content rewriting and interactive elements. Created for the Civic Engineering Team project.
 
-## ✨ Features
+## Features
 
-### 🎨 **Modern Notion-like UI**
-- Beautiful gradient backgrounds and glassmorphism effects
-- Responsive design with dark mode support
-- Professional typography and spacing
-- Smooth animations and hover effects
+### Dual Editor Modes
+- **Happy Editor**: Transforms text to be more positive and uplifting
+- **Sad Editor**: Rewrites content to be more contemplative and introspective
+- Switch between modes on the main page
 
-### 🤖 **AI-Powered Text Rewriting**
-- Use `/rewrite` command with Ctrl+Enter to transform text
-- **Happy Editor**: Makes text more positive and uplifting
-- **Contemplative Editor**: Makes text more introspective and thoughtful
-- Smart context-aware transformations
+### AI Text Rewriting
+- Type `/rewrite [your text]` and press Ctrl+Enter to transform content
+- Uses OpenAI's API for intelligent text transformation
+- Context-aware changes based on the selected editor mode
 
-### 📝 **Rich Text Editing**
-- Full Plate.js integration with plugins
-- Rich formatting: Bold, Italic, Underline, Code
-- Headings (H1, H2, H3)
-- Lists (Bulleted, Numbered)
-- Block quotes
-- Professional toolbar with icons
+### Interactive Text Elements
+- Words like "happy" and "sad" become clickable elements
+- Click on highlighted words to see inspiring quotes
+- Quotes are randomly selected from curated collections
 
-### 🎯 **Interactive Elements**
-- Custom "happy" and "sad" text elements
-- Click to reveal inspiring quotes
-- Beautiful popover animations
-- Context-aware quote selection
+### Text Editing
+- Basic formatting with Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline)
+- Clean, minimal interface focused on writing
+- Auto-save to local storage
 
-### 💾 **Data Persistence**
-- Automatic local storage saving
-- Content persists across sessions
-- Separate storage for each mood
+### Real-time Collaboration
+- Enter a room ID to collaborate with others
+- Real-time synchronization using Yjs and WebRTC
+- See other users and typing indicators
 
-### 🤝 **Collaboration Ready**
-- Room-based collaboration interface
-- Real-time editing infrastructure
-- Shareable room IDs
+## How to Use
 
-## 🚀 Getting Started
+### Basic Writing
+1. Choose either Happy or Sad editor from the main page
+2. Start typing in the editor
+3. Use keyboard shortcuts for formatting:
+   - Ctrl+B for bold
+   - Ctrl+I for italic
+   - Ctrl+U for underline
 
-### Prerequisites
+### AI Rewriting
+1. Type your text
+2. Add `/rewrite ` before the text you want to transform
+3. Press Ctrl+Enter
+4. The AI will rewrite the text according to the editor mode
 
-- Node.js 18+ 
-- npm or yarn
+### Collaboration
+1. Enter a room ID (any text works)
+2. Click "Start Writing" 
+3. Share the same room ID with others
+4. Write together in real-time
 
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install --legacy-peer-deps
-   ```
-
-3. **Set up OpenAI API Key** (Required for AI Features):
-   Create a `.env.local` file in the root directory:
-   ```bash
-   NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
-   ```
-   Get your API key from: https://platform.openai.com/api-keys
-   
-   **Note**: We use `NEXT_PUBLIC_` prefix to make the API key available on the client side for direct OpenAI integration.
-
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## 📖 Usage Guide
-
-### 😊 **Happy Editor** (`/happy`)
-Transform your writing into positive, uplifting content:
-- Type naturally in the rich text editor
-- Use formatting tools (bold, italic, headings, lists)
-- Type "happy" to create interactive quote elements
-- Use `Ctrl+Enter` with `/rewrite` to make text more positive
-- **Example**: "The weather is okay today /rewrite" → "The weather is absolutely wonderful today!"
-
-### 🌙 **Contemplative Editor** (`/sad`)
-Express deeper, more introspective thoughts:
-- Write with rich formatting and structure
-- Type "sad" to create interactive quote elements  
-- Use `Ctrl+Enter` with `/rewrite` to make text more contemplative
-- **Example**: "The weather is okay today /rewrite" → "The weather is disappointing today."
-
-### 🤝 **Collaboration**
-- Enter a room ID in the collaboration section
-- Share the room ID with others for real-time editing
-- Multiple users can write together simultaneously
+### Interactive Elements
+- Type "happy" or "sad" in your text
+- These words will appear highlighted
+- Click on them in the hint panel to see random quotes
 
 ## Project Structure
 
@@ -99,123 +62,40 @@ Express deeper, more introspective thoughts:
 src/
 ├── app/
 │   ├── happy/page.tsx          # Happy editor page
-│   ├── sad/page.tsx            # Sad editor page
-│   ├── layout.tsx              # Root layout with navigation
+│   ├── sad/page.tsx            # Sad editor page  
+│   ├── layout.tsx              # Main layout and navigation
 │   └── page.tsx                # Landing page
 ├── components/
 │   ├── editor/
-│   │   └── PlateEditor.tsx     # Main editor component
+│   │   ├── PlateEditor.tsx     # Main editor component
+│   │   ├── AISlashCommand.tsx
+│   │   ├── CollaborationPlugin.tsx
+│   │   ├── HappyElement.tsx    # Happy text element
+│   │   └── SadElement.tsx      # Sad text element
 │   └── ui/
-│       ├── button.tsx          # Button component
-│       ├── popover.tsx         # Popover component
-│       └── quote-popover.tsx   # Quote display component
+│       ├── popover.tsx (shadcn)
+│       ├── button.tsx (shadcn)
+│       └── quote-popover.tsx
 ├── hooks/
-│   └── useLocalStorage.ts      # Local storage hook
+│   ├── useAI.ts                # OpenAI integration hook
+│   └── useLocalStorage.ts      # Local storage management
 └── lib/
-    ├── ai.ts                   # AI text rewriting logic
-    ├── quotes.ts               # Happy/sad quotes
-    └── utils.ts                # Utility functions
+    ├── ai.ts                   # AI text transformation
+    ├── plate-config.ts         # Plate.js editor configuration
+    ├── collaboration.ts        # Real-time collaboration utilities
+    └── quotes.ts               # Quote collections
+└── types/
+    ├── index.ts                # Main type definitions
+    └── plate-elements.ts       # Plate element type definitions
 ```
 
-## 🛠 Technical Stack
+## Technical Details
 
-### Core Technologies
-- **Next.js 15.4.7** - React framework with App Router
-- **React 19.1.0** - Latest React with modern features
-- **Plate.js** - Powerful rich text editor framework
-- **TypeScript** - Full type safety throughout
-- **Tailwind CSS** - Modern styling with custom CSS variables
-- **Lucide React** - Beautiful, consistent icons
-
-### Key Features
-
-#### 🎨 **Notion-like Design**
-- Glassmorphism effects with backdrop-blur
-- CSS custom properties for theming
-- Gradient backgrounds and smooth transitions
-- Dark mode support with CSS variables
-
-#### 📝 **Rich Text Editor**
-- Full Plate.js integration with plugins
-- Custom toolbar with formatting controls
-- Interactive elements with click handlers
-- Real-time text transformation
-
-#### 🤖 **AI Integration**
-- Context-aware text rewriting
-- Mood-based transformations
-- Extensible for real AI APIs
-- Smart word replacement algorithms
-
-#### 💾 **State Management**
-- Local storage persistence
-- Type-safe hooks
-- Separate storage per editor mode
-- Error handling and recovery
-
-## Future Enhancements
-
-### Full Plate.js Integration
-To implement the complete Plate.js rich text editor:
-
-1. **Install compatible Plate.js packages**
-2. **Create custom element plugins** for "happy" and "sad" text
-3. **Implement word detection and transformation**
-4. **Add rich text formatting** (bold, italic, etc.)
-
-### Real-time Collaboration
-To add collaboration features:
-
-1. **Set up WebSocket server** (HocusPocus or custom)
-2. **Integrate Yjs** for conflict resolution
-3. **Add user cursors and presence**
-4. **Implement room-based editing**
-
-### Advanced AI Integration
-To enhance AI capabilities:
-
-1. **Integrate OpenAI API** or similar service
-2. **Add more sophisticated text analysis**
-3. **Implement context-aware rewriting**
-4. **Add multiple AI models** for different moods
-
-## Development
-
-### Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-
-### Code Quality
-
+Built with:
+- Next.js 15 with App Router
+- React 19
 - TypeScript for type safety
-- ESLint for code linting
-- Prettier for code formatting
-- Component-based architecture
-
-## Deployment
-
-The application can be deployed to:
-
-- **Vercel** (recommended for Next.js)
-- **Netlify**
-- **AWS Amplify**
-- Any platform supporting Node.js
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is part of the Civic Engineering Team assignment.
-
----
-
-**Note**: This is a simplified implementation that demonstrates the core concepts. The full Plate.js integration and real-time collaboration features would require additional setup and compatible dependencies.
+- Tailwind CSS for styling
+- OpenAI API for text transformation
+- Yjs for real-time collaboration
+- WebRTC for peer-to-peer communication

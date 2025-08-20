@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,9 +28,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <nav className="minimal-nav">
           <div className="minimal-nav-content">
-            <a href="/" className="minimal-nav-logo">
+            <Link href="/" className="minimal-nav-logo">
               Civic Editor
-            </a>
+            </Link>
             <div className="minimal-nav-links">
               <a href="/happy" className="minimal-nav-link">
                 Happy
