@@ -55,6 +55,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const editorRef = useRef<HTMLDivElement>(null);
   const isRemoteUpdateRef = useRef(false);
+  const isLocalUpdateRef = useRef(false);
 
   // Use the AI hook for rewriting text
   const { isProcessing, error: aiError, rewrite, clearError } = useAI({
@@ -290,8 +291,12 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     
     if (newContent !== currentContent) {
       console.log(`📤 Sending local update: "${newContent.substring(0, 50)}..."`);
+      isLocalUpdateRef.current = true;
       setValue(newValue);
       syncContentChange(newValue);
+      setTimeout(() => {
+        isLocalUpdateRef.current = false;
+      }, 50);
     }
   };
 
@@ -339,11 +344,6 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
           setValue(newValue);
           setEditorContent(remoteContent);
           
-          // Update the editor DOM directly
-          if (editorRef.current) {
-            editorRef.current.innerHTML = remoteContent.replace(/\n/g, '<br>');
-          }
-          
           setTimeout(() => {
             isRemoteUpdateRef.current = false;
           }, 150);
@@ -361,26 +361,31 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
     }
   }, [yDoc, provider, setValue]);
 
-  // Load content into contentEditable div with cursor preservation
+  // Only update editor content for remote changes and initial load
   useEffect(() => {
-    if (editorRef.current && value) {
-      const editor = editorRef.current;
-      
-      const content = Array.isArray(value) 
-        ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
-        : value;
-      
-      // Only update if content actually changed and we're not typing
-      const currentText = editor.textContent || '';
-      const newText = content.replace(/\n/g, '\n');
-      
-      if (currentText !== newText && isRemoteUpdateRef.current) {
+    if (!editorRef.current || !value) return;
+    
+    const editor = editorRef.current;
+    const content = Array.isArray(value) 
+      ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
+      : value;
+    
+    const currentText = editor.textContent || '';
+    const newText = content.replace(/\n/g, '\n');
+    
+    // Only update the DOM in these specific cases:
+    // 1. Initial load (empty editor)
+    // 2. Remote updates (not local typing)
+    if (currentText === '' || (isRemoteUpdateRef.current && !isLocalUpdateRef.current)) {
+      if (currentText !== newText) {
+        console.log(`🔄 Updating editor DOM: ${isRemoteUpdateRef.current ? 'remote' : 'initial'}`);
+        
         const selection = window.getSelection();
         const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
         
-        // Save cursor position
+        // Save cursor position only for remote updates
         let cursorPosition = 0;
-        if (range && editor.contains(range.startContainer)) {
+        if (isRemoteUpdateRef.current && range && editor.contains(range.startContainer)) {
           const preCaretRange = range.cloneRange();
           preCaretRange.selectNodeContents(editor);
           preCaretRange.setEnd(range.startContainer, range.startOffset);
@@ -389,8 +394,8 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
 
         editor.innerHTML = content.replace(/\n/g, '<br>');
         
-        // Restore cursor position only if we had one
-        if (cursorPosition > 0 && selection) {
+        // Restore cursor position only for remote updates
+        if (isRemoteUpdateRef.current && selection && cursorPosition > 0) {
           const textNodes: Text[] = [];
           const walker = document.createTreeWalker(
             editor,
@@ -418,9 +423,6 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
             charCount += textLength;
           }
         }
-      } else if (currentText === '' && newText !== '') {
-        // Initial load case
-        editor.innerHTML = content.replace(/\n/g, '<br>');
       }
     }
   }, [value]);
