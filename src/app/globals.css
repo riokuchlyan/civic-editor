@@ -1,0 +1,376 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 255 255 255;
+    --foreground: 0 0 0;
+    --muted: 245 245 245;
+    --muted-foreground: 115 115 115;
+    --border: 230 230 230;
+    --accent: 245 245 245;
+    --accent-foreground: 0 0 0;
+  }
+
+  .dark {
+    --background: 0 0 0;
+    --foreground: 255 255 255;
+    --muted: 23 23 23;
+    --muted-foreground: 163 163 163;
+    --border: 39 39 42;
+    --accent: 39 39 42;
+    --accent-foreground: 255 255 255;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Remove default browser focus/hover effects */
+  a, button, input, textarea, select {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  a:focus, button:focus, input:focus, textarea:focus, select:focus,
+  a:hover, button:hover, input:hover, textarea:hover, select:hover,
+  a:active, button:active, input:active, textarea:active, select:active {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    background-color: unset;
+  }
+
+  /* Remove autofill yellow background */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px hsl(var(--background)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  }
+}
+
+/* Minimal Navigation */
+.minimal-nav {
+  background-color: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: 60px;
+}
+
+.minimal-nav-content {
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  height: 100%;
+}
+
+.minimal-nav-logo {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+}
+
+.minimal-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.minimal-nav-link {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.minimal-nav-link:hover {
+  color: hsl(var(--foreground));
+}
+
+.minimal-nav-link.active {
+  color: hsl(var(--foreground));
+}
+
+/* Full Screen Editor Container */
+.editor-container {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: hsl(var(--background));
+  display: flex;
+  flex-direction: column;
+}
+
+/* Plate.js Editor Styles */
+.plate-editor {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  font-size: 16px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  background: transparent;
+  border: none;
+  outline: none;
+  overflow-y: auto;
+}
+
+.plate-editor:focus {
+  outline: none;
+}
+
+/* Typography */
+.plate-editor h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 2rem 0 1rem 0;
+  line-height: 1.2;
+  color: hsl(var(--foreground));
+}
+
+.plate-editor h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.75rem 0;
+  line-height: 1.3;
+  color: hsl(var(--foreground));
+}
+
+.plate-editor h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem 0;
+  line-height: 1.4;
+  color: hsl(var(--foreground));
+}
+
+.plate-editor p {
+  margin: 0 0 1rem 0;
+  color: hsl(var(--foreground));
+}
+
+.plate-editor strong {
+  font-weight: 600;
+}
+
+.plate-editor em {
+  font-style: italic;
+}
+
+.plate-editor code {
+  background-color: hsl(var(--muted));
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.plate-editor blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.plate-editor ul,
+.plate-editor ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+
+.plate-editor li {
+  margin: 0.25rem 0;
+}
+
+/* Custom Elements */
+.happy-text {
+  background-color: hsl(var(--muted));
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.happy-text:hover {
+  background-color: hsl(var(--accent));
+}
+
+.sad-text {
+  background-color: hsl(var(--muted));
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.sad-text:hover {
+  background-color: hsl(var(--accent));
+}
+
+/* Placeholder */
+.plate-editor[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  font-style: normal;
+  opacity: 0.6;
+}
+
+/* Selection */
+.plate-editor ::selection {
+  background: hsl(var(--muted));
+}
+
+/* Info Bar */
+.info-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: hsl(var(--background));
+  border-top: 1px solid hsl(var(--border));
+  padding: 0.75rem 2rem;
+  font-size: 0.75rem;
+  color: hsl(var(--foreground));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: hsl(var(--foreground));
+}
+
+.info-item span {
+  color: hsl(var(--foreground));
+}
+
+/* Home Page Buttons */
+.home-button {
+  padding: 0.75rem 2rem;
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-block;
+  border: 2px solid transparent;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.home-button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.home-button:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.home-button.primary {
+  background-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--background)) !important;
+  border: 2px solid hsl(var(--foreground)) !important;
+}
+
+.home-button.primary:hover {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 2px solid hsl(var(--foreground)) !important;
+}
+
+.home-button.primary:focus,
+.home-button.primary:active {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 2px solid hsl(var(--foreground)) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.home-button.secondary {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 2px solid hsl(var(--foreground)) !important;
+}
+
+.home-button.secondary:hover {
+  background-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--background)) !important;
+  border: 2px solid hsl(var(--foreground)) !important;
+}
+
+.home-button.secondary:focus,
+.home-button.secondary:active {
+  background-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--background)) !important;
+  border: 2px solid hsl(var(--foreground)) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .minimal-nav-content {
+    padding: 0 1rem;
+  }
+  
+  .minimal-nav-links {
+    gap: 1rem;
+  }
+  
+  .plate-editor {
+    padding: 2rem 1rem;
+    font-size: 15px;
+  }
+  
+  .plate-editor h1 {
+    font-size: 2rem;
+  }
+  
+  .info-bar {
+    padding: 0.5rem 1rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

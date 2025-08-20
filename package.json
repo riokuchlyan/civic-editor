@@ -1,0 +1,49 @@
+{
+  "name": "civic-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@radix-ui/react-popover": "^1.0.7",
+    "@udecode/plate": "^1.0.0",
+    "@udecode/plate-common": "^1.0.0",
+    "@udecode/plate-core": "^1.0.0",
+    "@udecode/plate-dnd": "^1.0.0",
+    "@udecode/plate-font": "^1.0.0",
+    "@udecode/plate-heading": "^1.0.0",
+    "@udecode/plate-list": "^1.0.0",
+    "@udecode/plate-paragraph": "^1.0.0",
+    "@udecode/plate-reset-node": "^1.0.0",
+    "@udecode/plate-select": "^1.0.0",
+    "@udecode/plate-trailing-block": "^1.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "lucide-react": "^0.400.0",
+    "next": "15.4.7",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "slate": "^0.110.2",
+    "slate-history": "^0.110.3",
+    "slate-hyperscript": "^0.66.0",
+    "slate-react": "^0.110.3",
+    "tailwind-merge": "^2.0.0",
+    "y-webrtc": "^10.3.0",
+    "yjs": "^13.6.27"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
