@@ -1,5 +1,7 @@
+import * as React from 'react';
+
 // Collaboration utilities for real-time editing
-// This file would integrate with Yjs and WebRTC providers
+// This file integrates with Yjs and WebRTC providers
 
 export interface CollaborationRoom {
   id: string;
@@ -18,18 +20,72 @@ export interface CollaborationUser {
   };
 }
 
-// Generate a random room ID
+// Generate a random room ID using a simple method (similar to nanoid)
 export function generateRoomId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 21; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 // Generate a random user color for collaboration
 export function generateUserColor(): string {
-  const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+// Hook for managing room state (inspired by the provided code)
+export function useCollaborationRoom() {
+  const [roomName, setRoomName] = React.useState(() => {
+    if (typeof window === 'undefined') return '';
+
+    const storedRoomId = localStorage.getItem('civic-room-id');
+    if (storedRoomId) return storedRoomId;
+
+    const newRoomId = generateRoomId();
+    localStorage.setItem('civic-room-id', newRoomId);
+    return newRoomId;
+  });
+
+  const handleRoomChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newRoomId = e.target.value;
+      localStorage.setItem('civic-room-id', newRoomId);
+      setRoomName(newRoomId);
+    },
+    []
+  );
+
+  const generateNewRoom = React.useCallback(() => {
+    const newRoomId = generateRoomId();
+    localStorage.setItem('civic-room-id', newRoomId);
+    setRoomName(newRoomId);
+  }, []);
+
+  return {
+    generateNewRoom,
+    roomName,
+    handleRoomChange,
+  };
+}
+
+// Hook for managing user/cursor state (inspired by the provided code)
+export function useCollaborationUser() {
+  const [username] = React.useState(
+    () => `user-${Math.floor(Math.random() * 1000)}`
+  );
+  const [cursorColor] = React.useState(() => generateUserColor());
+
+  return {
+    cursorColor,
+    username,
+  };
 }
 
 // Validate room ID format

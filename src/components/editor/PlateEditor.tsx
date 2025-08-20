@@ -1,11 +1,16 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-// import { createYjsPlugin } from '@udecode/plate-yjs'; // Package doesn't exist in current version
+import { RefreshCw } from 'lucide-react';
 import { HappyElement } from './HappyElement';
 import { SadElement } from './SadElement';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAI } from '../../hooks/useAI';
+import { useMounted } from '../../hooks/useMounted';
+import { useCollaborationRoom, useCollaborationUser } from '../../lib/collaboration';
+import { useCollaborationPlugin } from './CollaborationPlugin';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { WebsocketProvider } from 'y-websocket';
@@ -39,7 +44,20 @@ const getStarterText = (mood: 'happy' | 'sad') => {
   }
 };
 
-export function PlateEditor({ roomId, mood }: PlateEditorProps) {
+export function PlateEditor({ roomId: initialRoomId, mood }: PlateEditorProps) {
+  const mounted = useMounted();
+  const { generateNewRoom, roomName, handleRoomChange } = useCollaborationRoom();
+  const { cursorColor, username } = useCollaborationUser();
+  
+  // Use the provided roomId or the one from the collaboration hook
+  const activeRoomId = initialRoomId || roomName;
+  
+  const collaboration = useCollaborationPlugin({
+    roomId: activeRoomId,
+    username,
+    cursorColor,
+  });
+
   const initialValue = [
     {
       type: 'p',
@@ -50,11 +68,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   const [value, setValue] = useLocalStorage(`editor-${mood}`, initialValue);
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
-  const [provider, setProvider] = useState<WebrtcProvider | WebsocketProvider | null>(null);
-  const [providerType, setProviderType] = useState<'webrtc' | 'websocket' | 'none'>('none');
   const [editorContent, setEditorContent] = useState('');
-  const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const editorRef = useRef<HTMLDivElement>(null);
   const isRemoteUpdateRef = useRef(false);
   const isLocalUpdateRef = useRef(false);
@@ -619,20 +633,81 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
 
   return (
     <div className="editor-container">
-      <div
-        ref={editorRef}
-        className="plate-editor"
-        contentEditable
-        suppressContentEditableWarning
-        onKeyDown={handleKeyDown}
-        onInput={handleInput}
-        onPaste={handlePaste}
-        data-placeholder={`Start writing your ${mood} thoughts... Type /rewrite + Ctrl+Enter to transform text with AI.`}
-        style={{
-          outline: 'none',
-          whiteSpace: 'pre-wrap',
-        }}
-      />
+      {/* Collaboration Header */}
+      {mounted && (
+        <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium" htmlFor="room-id">
+                Room ID (share this to collaborate)
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="room-id"
+                  className="h-[28px] bg-background px-1.5 py-1"
+                  value={activeRoomId}
+                  onChange={handleRoomChange}
+                  type="text"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={generateNewRoom}
+                  title="Generate new room"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2">
+            <strong>Connected as</strong>{' '}
+            <span style={{ color: cursorColor }}>{username}</span>
+            <div className="mt-1 flex items-center gap-2 text-xs">
+              {collaboration.providers.map((provider, index) => (
+                <span
+                  key={index}
+                  className={`rounded px-2 py-0.5 ${
+                    provider.isConnected
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {provider.type.charAt(0).toUpperCase() + provider.type.slice(1)}:{' '}
+                  {provider.isConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                onClick={collaboration.isConnected ? collaboration.disconnect : collaboration.connect}
+              >
+                {collaboration.isConnected ? 'Disconnect' : 'Connect'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ position: 'relative' }}>
+        <div
+          ref={editorRef}
+          className="plate-editor"
+          contentEditable
+          suppressContentEditableWarning
+          onKeyDown={handleKeyDown}
+          onInput={handleInput}
+          onPaste={handlePaste}
+          data-placeholder={`Start writing your ${mood} thoughts... Type /rewrite + Ctrl+Enter to transform text with AI.`}
+          style={{
+            outline: 'none',
+            whiteSpace: 'pre-wrap',
+          }}
+        />
+        {/* Remote cursor overlay */}
+        <collaboration.RemoteCursorOverlay />
+      </div>
       
       {/* Show interactive elements when happy/sad words are detected */}
       {editorContent && (editorContent.includes('happy') || editorContent.includes('sad')) && (

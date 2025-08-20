@@ -1,45 +1,161 @@
 'use client';
 
-// Placeholder for future collaboration implementation
-// This would integrate with Yjs and WebRTC for real-time collaboration
+import * as React from 'react';
+import * as Y from 'yjs';
+import { WebrtcProvider } from 'y-webrtc';
+import { WebsocketProvider } from 'y-websocket';
+import { RemoteCursorOverlay } from '../ui/remote-cursor-overlay';
 
 export interface CollaborationConfig {
   roomId?: string;
   username?: string;
+  cursorColor?: string;
 }
 
-export const createCollaborationPlugin = (config: CollaborationConfig = {}) => {
-  return {
-    // Plugin configuration without using 'key' prop for JSX
-    handlers: {
-      // Placeholder for collaboration handlers
-      onConnect: () => {
-        if (config.roomId) {
-          console.log(`Connecting to collaboration room: ${config.roomId}`);
-          // TODO: Implement Yjs WebRTC connection
+interface CollaborationState {
+  isConnected: boolean;
+  providers: Array<{
+    type: 'webrtc' | 'websocket';
+    isConnected: boolean;
+  }>;
+  cursors: Array<{
+    clientId: string;
+    data?: { color: string; name: string };
+    caretPosition?: React.CSSProperties;
+    selectionRects: React.CSSProperties[];
+  }>;
+}
+
+export function useCollaborationPlugin(config: CollaborationConfig = {}) {
+  const [yDoc, setYDoc] = React.useState<Y.Doc | null>(null);
+  const [providers, setProviders] = React.useState<Array<WebrtcProvider | WebsocketProvider>>([]);
+  const [state, setState] = React.useState<CollaborationState>({
+    isConnected: false,
+    providers: [],
+    cursors: []
+  });
+
+  React.useEffect(() => {
+    if (!config.roomId) return;
+
+    const doc = new Y.Doc();
+    setYDoc(doc);
+
+    // Setup providers
+    const setupProviders = async () => {
+      const newProviders: Array<WebrtcProvider | WebsocketProvider> = [];
+      
+      try {
+        // Try WebRTC first
+        const webrtcProvider = new WebrtcProvider(`civic-${config.roomId}`, doc, {
+          signaling: [
+            process.env.NODE_ENV === 'production'
+              ? 'wss://signaling.yjs.dev'
+              : 'ws://localhost:4444',
+          ],
+        });
+        
+        if (config.username && config.cursorColor) {
+          webrtcProvider.awareness.setLocalStateField('user', {
+            name: config.username,
+            color: config.cursorColor,
+          });
         }
-      },
-      onDisconnect: () => {
-        console.log('Disconnecting from collaboration room');
-        // TODO: Implement disconnection logic
-      },
-    },
-    // Placeholder for future Yjs integration
-    withCollaboration: (editor: any) => {
-      // TODO: Enhance editor with collaboration capabilities
-      return editor;
-    },
+
+        newProviders.push(webrtcProvider);
+      } catch (error) {
+        console.warn('WebRTC provider failed, falling back to WebSocket');
+      }
+
+      // Fallback to WebSocket
+      const wsProvider = new WebsocketProvider(
+        'wss://demos.yjs.dev', 
+        `civic-${config.roomId}`, 
+        doc
+      );
+      
+      if (config.username && config.cursorColor) {
+        wsProvider.awareness.setLocalStateField('user', {
+          name: config.username,
+          color: config.cursorColor,
+        });
+      }
+
+      newProviders.push(wsProvider);
+      setProviders(newProviders);
+
+      // Setup state monitoring
+      newProviders.forEach((provider) => {
+        provider.on('status', ({ status }: { status: string }) => {
+          setState(prev => ({
+            ...prev,
+            isConnected: status === 'connected',
+            providers: prev.providers.map(p => 
+              p.type === (provider instanceof WebrtcProvider ? 'webrtc' : 'websocket')
+                ? { ...p, isConnected: status === 'connected' }
+                : p
+            )
+          }));
+        });
+
+        if (provider.awareness) {
+          provider.awareness.on('change', () => {
+            const states = Array.from(provider.awareness.getStates().values());
+            const cursors = states
+              .filter(state => state.user)
+              .map((state, index) => ({
+                clientId: `client-${index}`,
+                data: state.user,
+                caretPosition: undefined,
+                selectionRects: []
+              }));
+            
+            setState(prev => ({ ...prev, cursors }));
+          });
+        }
+      });
+    };
+
+    setupProviders();
+
+    return () => {
+      providers.forEach(provider => {
+        provider.destroy();
+      });
+      doc.destroy();
+    };
+  }, [config.roomId, config.username, config.cursorColor]);
+
+  const disconnect = React.useCallback(() => {
+    providers.forEach(provider => {
+      provider.disconnect();
+    });
+    setState(prev => ({ ...prev, isConnected: false }));
+  }, [providers]);
+
+  const connect = React.useCallback(() => {
+    providers.forEach(provider => {
+      provider.connect();
+    });
+  }, [providers]);
+
+  return {
+    yDoc,
+    isConnected: state.isConnected,
+    providers: state.providers,
+    cursors: state.cursors,
+    disconnect,
+    connect,
+    RemoteCursorOverlay: () => <RemoteCursorOverlay cursors={state.cursors} />
   };
-};
+}
 
 // Utility function to generate random room IDs
 export const generateRoomId = (): string => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
-
-// Placeholder for future WebRTC provider setup
-export const setupCollaborationProvider = (roomId: string) => {
-  console.log(`Setting up collaboration provider for room: ${roomId}`);
-  // TODO: Implement WebRTC provider setup
-  return null;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 21; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 };
