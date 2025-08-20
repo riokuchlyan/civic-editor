@@ -52,6 +52,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<WebrtcProvider | null>(null);
   const [editorContent, setEditorContent] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const editorRef = useRef<HTMLDivElement>(null);
   const isRemoteUpdateRef = useRef(false);
 
@@ -69,13 +70,43 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   // Set up Yjs collaboration
   useEffect(() => {
     if (roomId) {
+      console.log(`🔗 Setting up collaboration for room: ${roomId}`);
+      
       const doc = new Y.Doc();
-      const webrtcProvider = new WebrtcProvider(`civic-editor-${roomId}`, doc, {
-        signaling: ['wss://signaling.yjs.dev'],
+      // Use multiple signaling servers for better reliability
+      const webrtcProvider = new WebrtcProvider(`civic-${roomId}`, doc, {
+        signaling: [
+          'wss://signaling.yjs.dev',
+          'wss://y-webrtc-signaling-eu.herokuapp.com',
+          'wss://y-webrtc-signaling-us.herokuapp.com'
+        ],
+        password: null,
+        awareness: doc.awareness,
+        maxConns: 20 + Math.floor(Math.random() * 15), // randomize to avoid all clients connecting to same peer
+        filterBcConns: true,
+        peerOpts: {}
       });
 
       setYDoc(doc);
       setProvider(webrtcProvider);
+
+      // Connection status logging
+      webrtcProvider.on('status', (event: any) => {
+        console.log(`🌐 WebRTC status: ${event.status}`);
+        setConnectionStatus(event.status);
+      });
+
+      webrtcProvider.on('synced', (event: any) => {
+        console.log('🔄 Synced with peers:', event);
+        setConnectionStatus('synced');
+      });
+
+      webrtcProvider.on('peers', (event: any) => {
+        console.log(`🤝 Connected peers: ${event.added?.length || 0} added, ${event.removed?.length || 0} removed`);
+        if (event.added?.length > 0) {
+          setConnectionStatus('connected');
+        }
+      });
 
       // Listen for awareness changes (other users)
       webrtcProvider.awareness.on('change', () => {
@@ -88,6 +119,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
           })
           .map((state: unknown) => (state as { user: { name: string } }).user.name);
         setCollaborators(users);
+        console.log(`👥 Collaborators: ${users.join(', ')}`);
       });
 
       // Set current user info
@@ -98,34 +130,35 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
         typing: false,
       });
 
-      // Wait a bit for connection and then sync initial content
-      setTimeout(() => {
-        const yText = doc.getText('content');
+      // Handle initial content sync more carefully
+      const yText = doc.getText('content');
+      
+      // Only set initial content if document is truly empty and we have content
+      const setupInitialContent = () => {
         if (yText.length === 0) {
-          // If no content exists, set our initial content
           const currentContent = Array.isArray(value) 
             ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
             : '';
-          if (currentContent) {
+          
+          // Only add starter text if we have meaningful content (not just default text)
+          const starterText = getStarterText(mood).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (currentContent && currentContent !== starterText) {
+            console.log(`📝 Setting initial content for room ${roomId}`);
             yText.insert(0, currentContent);
           }
-        } else {
-          // If content exists, load it
-          const remoteContent = yText.toString();
-          if (remoteContent) {
-            const newValue = [{ type: 'p', children: [{ text: remoteContent }] }];
-            setValue(newValue);
-            setEditorContent(remoteContent);
-          }
         }
-      }, 500);
+      };
+
+      // Wait for connection before syncing
+      setTimeout(setupInitialContent, 1000);
 
       return () => {
+        console.log(`🔌 Disconnecting from room: ${roomId}`);
         webrtcProvider.destroy();
         doc.destroy();
       };
     }
-  }, [roomId, setValue, value]);
+  }, [roomId]);
 
   // Typing indicator and input handler
   useEffect(() => {
@@ -239,7 +272,10 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     // Don't update during remote updates to avoid conflicts
-    if (isRemoteUpdateRef.current) return;
+    if (isRemoteUpdateRef.current) {
+      console.log('⏸️ Skipping input during remote update');
+      return;
+    }
     
     const newContent = e.currentTarget.textContent || '';
     const newValue = [{ type: 'p', children: [{ text: newContent }] }];
@@ -253,6 +289,7 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
       : value;
     
     if (newContent !== currentContent) {
+      console.log(`📤 Sending local update: "${newContent.substring(0, 50)}..."`);
       setValue(newValue);
       syncContentChange(newValue);
     }
@@ -293,23 +330,36 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
           ? value.map(node => node.children?.map((child: { text: string }) => child.text).join('') || '').join('\n')
           : '';
           
-        if (remoteContent && remoteContent !== currentContent) {
+        if (remoteContent !== currentContent) {
+          console.log(`📥 Received remote update: "${remoteContent.substring(0, 50)}..."`);
           isRemoteUpdateRef.current = true;
+          
           // Update both the state and editor content
           const newValue = [{ type: 'p', children: [{ text: remoteContent }] }];
           setValue(newValue);
           setEditorContent(remoteContent);
           
+          // Update the editor DOM directly
+          if (editorRef.current) {
+            editorRef.current.innerHTML = remoteContent.replace(/\n/g, '<br>');
+          }
+          
           setTimeout(() => {
             isRemoteUpdateRef.current = false;
-          }, 100);
+          }, 150);
         }
       };
 
       yText.observe(observer);
+      
+      // Also listen for when the document gets loaded with existing content
+      if (yText.length > 0) {
+        observer(); // Trigger initial load
+      }
+      
       return () => yText.unobserve(observer);
     }
-  }, [yDoc, provider, value, setValue]);
+  }, [yDoc, provider, setValue]);
 
   // Load content into contentEditable div with cursor preservation
   useEffect(() => {
@@ -536,15 +586,16 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
           <div className="info-item">
             <span>Ctrl+B/I/U for formatting • /rewrite + Ctrl+Enter for AI</span>
           </div>
-          {roomId && (
-            <div className="info-item">
-              <span>🤝 Room: {roomId}</span>
-              {collaborators.length > 0 && (
-                <span> • 👥 {collaborators.join(', ')}</span>
-              )}
-              {isTyping && <span> • ✍️ typing...</span>}
-            </div>
-          )}
+                                {roomId && (
+                        <div className="info-item">
+                          <span>🤝 Room: {roomId}</span>
+                          <span> • 🌐 {connectionStatus}</span>
+                          {collaborators.length > 0 && (
+                            <span> • 👥 {collaborators.join(', ')}</span>
+                          )}
+                          {isTyping && <span> • ✍️ typing...</span>}
+                        </div>
+                      )}
         </div>
       )}
     </div>
