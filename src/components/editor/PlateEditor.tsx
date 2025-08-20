@@ -8,7 +8,7 @@ import { createBoldPlugin, createItalicPlugin, createUnderlinePlugin } from '@ud
 import { createListPlugin } from '@udecode/plate-list';
 // import { createYjsPlugin } from '@udecode/plate-yjs'; // Package doesn't exist in current version
 import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { rewriteText } from '../../lib/ai';
+import { useAI } from '../../hooks/useAI';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 
@@ -50,13 +50,23 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
   ];
   
   const [value, setValue] = useLocalStorage(`editor-${mood}`, initialValue);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<WebrtcProvider | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const isRemoteUpdateRef = useRef(false);
+
+  // Use the AI hook for rewriting text
+  const { isProcessing, error: aiError, rewrite, clearError } = useAI({
+    mood,
+    onSuccess: (result) => {
+      console.log(`AI rewrite successful for ${mood} mode:`, result);
+    },
+    onError: (error) => {
+      console.error(`AI rewrite failed for ${mood} mode:`, error);
+    },
+  });
 
   // Set up Yjs collaboration
   useEffect(() => {
@@ -147,40 +157,39 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
       e.preventDefault();
       const text = target.textContent || '';
 
-      if (text.includes('/rewrite')) {
-        setIsProcessing(true);
-        
-        // Extract text after /rewrite command
-        const lines = text.split('\n');
-        const rewriteLine = lines.find(line => line.includes('/rewrite'));
-        
-        if (rewriteLine) {
-          const textToRewrite = rewriteLine.replace('/rewrite', '').trim();
-          
-          if (textToRewrite) {
-            try {
-              const rewrittenText = await rewriteText(textToRewrite, mood);
-              
-              // Replace the /rewrite line with the rewritten text
-              const newLines = lines.map(line => 
-                line.includes('/rewrite') ? rewrittenText : line
-              );
-              
-                                        const newContent = newLines.join('\n');
-                          target.innerHTML = newContent.replace(/\n/g, '<br>');
-                          const newValue = [{ type: 'p', children: [{ text: newContent }] }];
-                          setValue(newValue);
-                          syncContentChange(newValue);
-            } catch (error) {
-              console.error('Error rewriting text:', error);
-              // Show error in the editor
-              const errorText = `<p style="color: red;">Error: Could not rewrite text. ${error}</p>`;
-              target.innerHTML = target.innerHTML.replace('/rewrite ' + textToRewrite, errorText);
+              if (text.includes('/rewrite')) {
+          // Extract text after /rewrite command
+          const lines = text.split('\n');
+          const rewriteLine = lines.find(line => line.includes('/rewrite'));
+
+          if (rewriteLine) {
+            const textToRewrite = rewriteLine.replace('/rewrite', '').trim();
+
+            if (textToRewrite) {
+              try {
+                const rewrittenText = await rewrite(textToRewrite);
+
+                if (rewrittenText) {
+                  // Replace the /rewrite line with the rewritten text
+                  const newLines = lines.map(line =>
+                    line.includes('/rewrite') ? rewrittenText : line
+                  );
+
+                  const newContent = newLines.join('\n');
+                  target.innerHTML = newContent.replace(/\n/g, '<br>');
+                  const newValue = [{ type: 'p', children: [{ text: newContent }] }];
+                  setValue(newValue);
+                  syncContentChange(newValue);
+                }
+              } catch (error) {
+                console.error('Error rewriting text:', error);
+                // Show error in the editor
+                const errorText = `<p style="color: red;">Error: Could not rewrite text. ${error}</p>`;
+                target.innerHTML = target.innerHTML.replace('/rewrite ' + textToRewrite, errorText);
+              }
             }
           }
         }
-        setIsProcessing(false);
-      }
     }
   };
 
@@ -338,15 +347,38 @@ export function PlateEditor({ roomId, mood }: PlateEditorProps) {
         }}
       />
       
-      {isProcessing && (
+            {isProcessing && (
         <div className="info-bar">
           <div className="info-item">
-            <span>🤖 AI is rewriting your text...</span>
+            <span>🤖 AI is rewriting your text with OpenAI...</span>
           </div>
         </div>
       )}
-      
-      {!isProcessing && (
+
+      {aiError && (
+        <div className="info-bar">
+          <div className="info-item">
+            <span style={{ color: '#ff6b6b' }}>⚠️ {aiError}</span>
+            <button 
+              onClick={clearError}
+              style={{ 
+                marginLeft: '1rem', 
+                padding: '0.25rem 0.5rem', 
+                fontSize: '0.75rem',
+                background: 'transparent',
+                border: '1px solid #ff6b6b',
+                color: '#ff6b6b',
+                borderRadius: '0.25rem',
+                cursor: 'pointer'
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isProcessing && !aiError && (
         <div className="info-bar">
           <div className="info-item">
             <span>📝 {mood === 'happy' ? 'Happy' : 'Sad'} Editor</span>

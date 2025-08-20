@@ -55,12 +55,21 @@ A beautiful Notion-like text editor built with Next.js, Plate.js, and AI-powered
    npm install --legacy-peer-deps
    ```
 
-3. Start the development server:
+3. **Set up OpenAI API Key** (Required for AI Features):
+   Create a `.env.local` file in the root directory:
+   ```bash
+   NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
+   ```
+   Get your API key from: https://platform.openai.com/api-keys
+   
+   **Note**: We use `NEXT_PUBLIC_` prefix to make the API key available on the client side for direct OpenAI integration.
+
+4. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ## 📖 Usage Guide
 

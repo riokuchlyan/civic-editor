@@ -1,30 +1,41 @@
 export async function rewriteText(text: string, mood: 'happy' | 'sad'): Promise<string> {
-  // Simulate API delay for realistic feel
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-  
-  // For demo purposes - replace with actual AI API call
+  try {
+    const response = await fetch('/api/rewrite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text, mood }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to rewrite text');
+    }
+
+    const { rewrittenText } = await response.json();
+    return rewrittenText;
+  } catch (error) {
+    console.error('Error rewriting text:', error);
+    
+    // Fallback to local transformation if API fails
+    return fallbackRewrite(text, mood);
+  }
+}
+
+// Fallback function in case OpenAI API fails
+function fallbackRewrite(text: string, mood: 'happy' | 'sad'): string {
   const happyTransformations = {
     'okay': 'absolutely wonderful',
     'fine': 'fantastic',
     'good': 'amazing',
     'great': 'absolutely spectacular',
     'nice': 'incredible',
-    'pretty': 'absolutely stunning',
-    'weather': 'beautiful weather',
-    'day': 'spectacular day',
-    'time': 'wonderful time',
-    'morning': 'glorious morning',
-    'evening': 'magical evening',
-    'work': 'fulfilling work',
-    'job': 'dream job',
     'bad': 'challenging but rewarding',
     'difficult': 'exciting challenge',
-    'hard': 'inspiring journey',
     'problem': 'opportunity',
-    'issue': 'growth opportunity',
     'tired': 'ready for rest and rejuvenation',
-    'stressed': 'energized and focused',
-    'busy': 'productively engaged'
+    'stressed': 'energized and focused'
   };
 
   const sadTransformations = {
@@ -33,22 +44,11 @@ export async function rewriteText(text: string, mood: 'happy' | 'sad'): Promise<
     'good': 'barely acceptable',
     'great': 'overhyped',
     'nice': 'somewhat tolerable',
-    'pretty': 'unremarkably ordinary',
-    'weather': 'dreary weather',
-    'day': 'gloomy day',
-    'time': 'difficult time',
-    'morning': 'bleak morning',
-    'evening': 'lonely evening',
-    'work': 'burdensome work',
-    'job': 'soul-crushing job',
     'bad': 'terrible',
     'difficult': 'overwhelming',
-    'hard': 'impossibly challenging',
     'problem': 'insurmountable obstacle',
-    'issue': 'devastating complication',
     'tired': 'utterly exhausted',
-    'stressed': 'overwhelmed and anxious',
-    'busy': 'frantically overloaded'
+    'stressed': 'overwhelmed and anxious'
   };
 
   let result = text;
@@ -62,23 +62,18 @@ export async function rewriteText(text: string, mood: 'happy' | 'sad'): Promise<
 
   // Add mood-appropriate style enhancements
   if (mood === 'happy') {
-    // Make it more enthusiastic
     result = result.replace(/\.$/, '!');
     result = result.replace(/\b(I am|I'm)\b/gi, "I'm absolutely");
-    result = result.replace(/\b(feel|feeling)\b/gi, "feeling wonderfully");
     if (!result.includes('!') && !result.includes('?')) {
       result += '!';
     }
   } else {
-    // Make it more contemplative and melancholic
     result = result.replace(/!$/, '.');
     result = result.replace(/\b(I am|I'm)\b/gi, "I find myself");
-    result = result.replace(/\b(feel|feeling)\b/gi, "feeling deeply");
-    result = result.replace(/\b(think|thinking)\b/gi, "contemplating");
     if (!result.includes('.') && !result.includes('?')) {
       result += '...';
     }
   }
 
-  return result;
+  return result + ' (Fallback mode - check your OpenAI API key)';
 }
