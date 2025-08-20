@@ -56,7 +56,7 @@ export function QuotePopover({ children, quotes, type }: QuotePopoverProps) {
               fontWeight: '600'
             }}
           >
-            {type === 'happy' ? '😊 Happy Quote' : '😔 Contemplative Quote'}
+            {type === 'happy' ? '😊 Happy Quote' : '😔 Sad Quote'}
           </h4>
           <p 
             style={{
