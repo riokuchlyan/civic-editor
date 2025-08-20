@@ -13,18 +13,27 @@ export function QuotePopover({ children, quotes, type }: QuotePopoverProps) {
   const [open, setOpen] = useState(false);
   const [currentQuote, setCurrentQuote] = useState('');
 
-  const handleClick = () => {
+  const handleMouseEnter = () => {
     const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(randomQuote);
     setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setOpen(false);
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <span 
-          className="cursor-pointer text-blue-600 hover:text-blue-800 underline"
-          onClick={handleClick}
+          className={`cursor-default font-medium underline decoration-2 underline-offset-2 ${
+            type === 'happy' 
+              ? 'text-green-600 decoration-green-300 hover:text-green-700 hover:decoration-green-400' 
+              : 'text-red-600 decoration-red-300 hover:text-red-700 hover:decoration-red-400'
+          }`}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           {children}
         </span>
